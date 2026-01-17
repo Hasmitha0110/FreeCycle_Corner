@@ -1,6 +1,4 @@
-
-
-class User{
+class User {
   int userId;
   String name;
   String studentId;
@@ -8,7 +6,6 @@ class User{
   String contact;
   String email;
   String password;
-  DateTime createdAt = DateTime.now();
 
   User({
     required this.userId,
@@ -17,26 +14,6 @@ class User{
     required this.nic,
     required this.contact,
     required this.email,
-    required this.password
+    required this.password,
   });
-
-
-  void rejister(){
-    print("User $name Rejistered");
-  }
-
-  void login(){
-    print("User $name Logged In");
-  }
-
-  void logout(){
-    print("User $name Logged Out");
-  }
-
-
-
-
-
-
-
 }
