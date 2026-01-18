@@ -1,0 +1,737 @@
+lib\main.dart
+
+import 'package:flutter/material.dart';
+import 'screens/login_screen.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: LoginScreen(),
+    );
+  }
+}
+
+
+lib\classes\claim.dart
+
+class Claim {
+  int claimId;
+  int itemId;
+  int claimerId;
+  String status;
+  DateTime claimDate;
+
+  Claim({
+    required this.claimId,
+    required this.itemId,
+    required this.claimerId,
+    required this.status,
+  }) : claimDate = DateTime.now();
+}
+
+
+lib\classes\item.dart
+
+class Item {
+  int itemId;
+  String itemName;
+  String condition;        // ✅ THIS EXISTS
+  String description;
+  double price;
+  String category;
+  String pickupLocation;
+  String status;
+  String photoPath;
+  DateTime createdAt;
+
+  String ownerName;
+  String ownerContact;
+  String ownerEmail;
+
+  Item({
+    required this.itemId,
+    required this.itemName,
+    required this.condition,
+    required this.description,
+    required this.price,
+    required this.category,
+    required this.pickupLocation,
+    required this.status,
+    required this.photoPath,
+    required this.ownerName,
+    required this.ownerContact,
+    required this.ownerEmail,
+  }) : createdAt = DateTime.now();
+}
+
+
+lib\classes\user.dart
+
+class User {
+  int userId;
+  String name;
+  String studentId;
+  String nic;
+  String contact;
+  String email;
+  String password;
+
+  User({
+    required this.userId,
+    required this.name,
+    required this.studentId,
+    required this.nic,
+    required this.contact,
+    required this.email,
+    required this.password,
+  });
+}
+
+
+lib\auth\current_user.dart
+
+import '../classes/user.dart';
+
+class CurrentUser {
+  static User? user;
+
+  static bool get isLoggedIn => user != null;
+
+  static void logout() {
+    user = null;
+  }
+}
+
+
+lib\screens\add_edit_item_screen.dart
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../classes/item.dart';
+import '../auth/current_user.dart';
+
+
+
+class AddEditItemScreen extends StatefulWidget {
+  final Item? item;
+
+  const AddEditItemScreen({super.key, this.item});
+
+  @override
+  State<AddEditItemScreen> createState() => _AddEditItemScreenState();
+}
+
+class _AddEditItemScreenState extends State<AddEditItemScreen> {
+  late TextEditingController name;
+  late TextEditingController condition;
+  late TextEditingController description;
+  late TextEditingController price;
+  late TextEditingController category;
+  late TextEditingController location;
+
+  String status = "Available";
+  String photoPath = "";
+
+  @override
+  void initState() {
+    super.initState();
+    name = TextEditingController(text: widget.item?.itemName ?? "");
+    condition = TextEditingController(text: widget.item?.condition ?? "");
+    description = TextEditingController(text: widget.item?.description ?? "");
+    price = TextEditingController(
+        text: widget.item?.price.toString() ?? "");
+    category = TextEditingController(text: widget.item?.category ?? "");
+    location = TextEditingController(text: widget.item?.pickupLocation ?? "");
+    status = widget.item?.status ?? "Available";
+    photoPath = widget.item?.photoPath ?? "";
+  }
+
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() => photoPath = image.path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.item != null;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEdit ? "Edit Item" : "Add Item"),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (photoPath.isNotEmpty)
+            Image.file(File(photoPath), height: 150, fit: BoxFit.cover),
+
+          TextButton.icon(
+            onPressed: pickImage,
+            icon: const Icon(Icons.photo),
+            label: const Text("Add Photo"),
+          ),
+
+          TextField(controller: name, decoration: const InputDecoration(labelText: "Item Name")),
+          TextField(controller: condition, decoration: const InputDecoration(labelText: "Condition")),
+          TextField(controller: description, decoration: const InputDecoration(labelText: "Description")),
+          TextField(controller: price, decoration: const InputDecoration(labelText: "Price")),
+          TextField(controller: category, decoration: const InputDecoration(labelText: "Category")),
+          TextField(controller: location, decoration: const InputDecoration(labelText: "Pickup Location")),
+
+          const SizedBox(height: 10),
+
+          DropdownButtonFormField<String>(
+            value: status,
+            items: ["Available", "Sold"]
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                .toList(),
+            onChanged: (v) => setState(() => status = v!),
+            decoration: const InputDecoration(labelText: "Status"),
+          ),
+
+          const SizedBox(height: 20),
+
+          ElevatedButton(
+            onPressed: () {
+              if (isEdit) {
+                widget.item!
+                  ..itemName = name.text
+                  ..condition = condition.text
+                  ..description = description.text
+                  ..price = double.parse(price.text)
+                  ..category = category.text
+                  ..pickupLocation = location.text
+                  ..status = status
+                  ..photoPath = photoPath;
+
+                Navigator.pop(context);
+              } else {
+                Navigator.pop(
+                  context,
+                  Item(
+                    itemId: DateTime.now().millisecondsSinceEpoch,
+                    itemName: name.text,
+                    condition: condition.text,
+                    description: description.text,
+                    price: double.parse(price.text),
+                    category: category.text,
+                    pickupLocation: location.text,
+                    status: status,
+                    photoPath: photoPath,
+                    ownerName: CurrentUser.user!.name,
+ownerContact: CurrentUser.user!.contact,
+ownerEmail: CurrentUser.user!.email,
+
+                  ),
+                );
+              }
+            },
+            child: Text(isEdit ? "Update Item" : "Add Item"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+lib\screens\cart_screen.dart
+
+import 'package:flutter/material.dart';
+import '../classes/item.dart';
+
+class CartScreen extends StatelessWidget {
+  final List<Item> cart;
+
+  const CartScreen({super.key, required this.cart});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = cart.fold<double>(
+        0, (sum, item) => sum + item.price);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Cart")),
+      body: cart.isEmpty
+          ? const Center(child: Text("Cart is empty"))
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: cart.length,
+                    itemBuilder: (_, i) {
+                      final item = cart[i];
+                      return ListTile(
+                        title: Text(item.itemName),
+                        subtitle: Text(item.pickupLocation),
+                        trailing: Text("Rs. ${item.price}"),
+                        onTap: () {
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    "Total Price: Rs. $total",
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+
+lib\screens\home_screen.dart
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import '../classes/item.dart';
+import 'add_edit_item_screen.dart';
+import 'item_detail_screen.dart';
+import 'cart_screen.dart';
+import '../auth/current_user.dart';
+import 'login_screen.dart';
+
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<Item> items = [];
+  List<Item> cart = [];
+  String searchText = "";
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredItems = items
+        .where((item) =>
+            item.itemName.toLowerCase().contains(searchText.toLowerCase()))
+        .toList();
+
+    return Scaffold(
+      appBar: AppBar(
+  title: Text("Hey, ${CurrentUser.user?.name ?? ''} 👋"),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.logout),
+      onPressed: () {
+        CurrentUser.logout();
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+          (route) => false,
+        );
+      },
+    ),
+    IconButton(
+      icon: const Icon(Icons.shopping_cart),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => CartScreen(cart: cart)),
+        );
+      },
+    ),
+  ],
+),
+
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: () async {
+          final Item? newItem = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AddEditItemScreen(),
+            ),
+          );
+
+          if (newItem != null) {
+            setState(() => items.add(newItem));
+          }
+        },
+      ),
+      body: Column(
+        children: [
+          // 🔍 SEARCH BAR
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: "Search items",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() => searchText = value);
+              },
+            ),
+          ),
+
+          // 🧱 ITEM GRID
+          Expanded(
+            child: filteredItems.isEmpty
+                ? const Center(child: Text("No items found"))
+                : GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.75,
+                    ),
+                    itemCount: filteredItems.length,
+                    itemBuilder: (_, index) {
+                      final item = filteredItems[index];
+
+                      return GestureDetector(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ItemDetailScreen(
+                                item: item,
+                                onDelete: () {
+                                  setState(() => items.remove(item));
+                                  Navigator.pop(context);
+                                },
+                                onAddToCart: () {
+                                  if (!cart.contains(item)) {
+                                    setState(() => cart.add(item));
+                                  }
+                                },
+                                onEdit: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          AddEditItemScreen(item: item),
+                                    ),
+                                  );
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                          );
+                          setState(() {});
+                        },
+                        child: Card(
+                          elevation: 3,
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: item.photoPath.isNotEmpty
+                                    ? Image.file(
+                                        File(item.photoPath),
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      )
+                                    : const Icon(Icons.image, size: 80),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      item.itemName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text("Rs. ${item.price}"),
+                                    Chip(
+                                      label: Text(item.status),
+                                      backgroundColor: item.status == "Available"
+                                          ? Colors.green.shade100
+                                          : Colors.red.shade100,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+lib\screens\item_detail_screen.dart
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import '../classes/item.dart';
+import '../auth/current_user.dart';
+
+class ItemDetailScreen extends StatelessWidget {
+  final Item item;
+  final VoidCallback onDelete;
+  final VoidCallback onAddToCart;
+  final VoidCallback onEdit;
+
+  const ItemDetailScreen({
+    super.key,
+    required this.item,
+    required this.onDelete,
+    required this.onAddToCart,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isOwner =
+        item.ownerEmail == CurrentUser.user!.email;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(item.itemName),
+        actions: [
+          // ✏️ EDIT — OWNER ONLY
+          if (isOwner)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: onEdit,
+            ),
+
+          // 🗑 DELETE — OWNER ONLY
+          if (isOwner)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: onDelete,
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // 🖼 PHOTO
+          item.photoPath.isNotEmpty
+              ? Image.file(
+                  File(item.photoPath),
+                  height: 220,
+                  fit: BoxFit.cover,
+                )
+              : const Icon(Icons.image, size: 150),
+
+          const SizedBox(height: 12),
+
+          Text(
+            item.itemName,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text("Condition: ${item.condition}"),
+          Text("Description: ${item.description}"),
+          Text("Category: ${item.category}"),
+          Text("Pickup Location: ${item.pickupLocation}"),
+          Text(
+            "Status: ${item.status}",
+            style: TextStyle(
+              color: item.status == "Available"
+                  ? Colors.green
+                  : Colors.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text("Created At: ${item.createdAt}"),
+
+          const Divider(height: 30),
+
+          // 👤 OWNER INFO (VISIBLE TO ALL)
+          Text(
+            "Owner Information",
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text("Name: ${item.ownerName}"),
+          Text("Contact: ${item.ownerContact}"),
+          Text("Email: ${item.ownerEmail}"),
+
+          const SizedBox(height: 20),
+
+          // 🛒 ADD TO CART — EVERYONE
+          ElevatedButton.icon(
+            onPressed: onAddToCart,
+            icon: const Icon(Icons.shopping_cart),
+            label: const Text("Add to Cart"),
+          ),
+
+          // 🔒 OWNER NOTICE
+          if (!isOwner)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                "You can view and claim this item, but only the owner can edit or delete it.",
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+
+lib\screens\login_screen.dart
+
+import 'package:flutter/material.dart';
+import '../auth/current_user.dart';
+import '../classes/user.dart';
+import 'home_screen.dart';
+import 'signup_screen.dart';
+
+class LoginScreen extends StatelessWidget {
+  LoginScreen({super.key});
+
+  final email = TextEditingController();
+  final password = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "Freecycle Corner",
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 30),
+
+            TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
+            TextField(controller: password, decoration: const InputDecoration(labelText: "Password"), obscureText: true),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: () {
+                // Dummy login (exam-safe)
+                CurrentUser.user = User(
+                  userId: 1,
+                  name: "Demo User",
+                  studentId: "EG000",
+                  nic: "000000000V",
+                  contact: "0710000000",
+                  email: email.text,
+                  password: password.text,
+                );
+
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
+              child: const Text("Login"),
+            ),
+
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => SignupScreen()),
+                );
+              },
+              child: const Text("Don't have an account? Sign Up"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+lib\screens\signup_screen.dart
+
+import 'package:flutter/material.dart';
+import '../classes/user.dart';
+import '../auth/current_user.dart';
+import 'home_screen.dart';
+
+class SignupScreen extends StatelessWidget {
+  SignupScreen({super.key});
+
+  final name = TextEditingController();
+  final studentId = TextEditingController();
+  final nic = TextEditingController();
+  final contact = TextEditingController();
+  final email = TextEditingController();
+  final password = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Sign Up")),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(controller: name, decoration: const InputDecoration(labelText: "Full Name")),
+          TextField(controller: studentId, decoration: const InputDecoration(labelText: "Student ID")),
+          TextField(controller: nic, decoration: const InputDecoration(labelText: "NIC")),
+          TextField(controller: contact, decoration: const InputDecoration(labelText: "Contact Number")),
+          TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
+          TextField(controller: password, decoration: const InputDecoration(labelText: "Password"), obscureText: true),
+
+          const SizedBox(height: 20),
+
+          ElevatedButton(
+            onPressed: () {
+              // Create user
+              CurrentUser.user = User(
+                userId: DateTime.now().millisecondsSinceEpoch,
+                name: name.text,
+                studentId: studentId.text,
+                nic: nic.text,
+                contact: contact.text,
+                email: email.text,
+                password: password.text,
+              );
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            },
+            child: const Text("Create Account"),
+          ),
+        ],
+      ),
+    );
+  }
+}
