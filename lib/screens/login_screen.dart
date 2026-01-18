@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/current_user.dart';
 import '../classes/user.dart';
 import 'home_screen.dart';
@@ -23,33 +25,42 @@ class LoginScreen extends StatelessWidget {
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
-
             TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
             TextField(controller: password, decoration: const InputDecoration(labelText: "Password"), obscureText: true),
-
             const SizedBox(height: 20),
-
             ElevatedButton(
-              onPressed: () {
-                // Dummy login (exam-safe)
-                CurrentUser.user = User(
-                  userId: 1,
-                  name: "Demo User",
-                  studentId: "EG000",
-                  nic: "000000000V",
-                  contact: "0710000000",
-                  email: email.text,
-                  password: password.text,
-                );
+              onPressed: () async {
+                try {
+                  // 1. Sign in with Firebase Auth [cite: 95, 96]
+                  auth.UserCredential credential = await auth.FirebaseAuth.instance
+                      .signInWithEmailAndPassword(
+                    email: email.text.trim(),
+                    password: password.text.trim(),
+                  );
 
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                );
+                  // 2. Fetch user profile from Firestore [cite: 95]
+                  var userDoc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(credential.user!.uid)
+                      .get();
+
+                  if (userDoc.exists) {
+                    // 3. Set global session and navigate [cite: 97]
+                    CurrentUser.user = User.fromMap(userDoc.data()!);
+                    
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Login Failed: Check Email/Password")),
+                  );
+                }
               },
               child: const Text("Login"),
             ),
-
             TextButton(
               onPressed: () {
                 Navigator.push(

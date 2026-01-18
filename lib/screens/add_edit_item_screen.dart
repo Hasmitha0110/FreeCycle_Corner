@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import '../classes/item.dart';
 import '../auth/current_user.dart';
 
@@ -49,6 +50,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
   Widget build(BuildContext context) {
     final isEdit = widget.item != null;
     return Scaffold(
+      // FIXED: Changed 'app_bar' to 'appBar'
       appBar: AppBar(title: Text(isEdit ? "Edit Item" : "Add Item")),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -67,7 +69,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           TextField(controller: description, decoration: const InputDecoration(labelText: "Description")),
           TextField(
             controller: price, 
-            decoration: const InputDecoration(labelText: "Price (Rs.)"),
+            decoration: const InputDecoration(labelText: "Price (Rs.)"), 
             keyboardType: TextInputType.number,
           ),
           TextField(controller: category, decoration: const InputDecoration(labelText: "Category")),
@@ -87,52 +89,49 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           const SizedBox(height: 20),
 
           ElevatedButton(
-            onPressed: () {
-              // Validates that the price is actually a number
+            onPressed: () async {
               final double? parsedPrice = double.tryParse(price.text);
               if (parsedPrice == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Please enter a valid price number")),
+                  const SnackBar(content: Text("Enter a valid price"))
                 );
                 return;
               }
 
-              if (isEdit) {
-                // Only update the item fields, preserving owner info
-                setState(() {
-                  widget.item!
-                    ..itemName = name.text
-                    ..condition = condition.text
-                    ..description = description.text
-                    ..price = parsedPrice
-                    ..category = category.text
-                    ..pickupLocation = location.text
-                    ..status = status
-                    ..photoPath = photoPath;
-                });
+              final itemData = {
+                'itemName': name.text,
+                'condition': condition.text,
+                'description': description.text,
+                'price': parsedPrice,
+                'category': category.text,
+                'pickupLocation': location.text,
+                'status': status,
+                'photoPath': photoPath,
+                'ownerName': CurrentUser.user!.name,
+                'ownerContact': CurrentUser.user!.contact,
+                'ownerEmail': CurrentUser.user!.email,
+                'createdAt': Timestamp.now(),
+              };
+
+              try {
+                if (isEdit) {
+                  await FirebaseFirestore.instance
+                      .collection('items')
+                      .doc(widget.item!.itemId)
+                      .update(itemData);
+                } else {
+                  await FirebaseFirestore.instance
+                      .collection('items')
+                      .add(itemData);
+                }
                 Navigator.pop(context);
-              } else {
-                // Create a completely new item with current user as owner
-                Navigator.pop(
-                  context,
-                  Item(
-                    itemId: DateTime.now().millisecondsSinceEpoch,
-                    itemName: name.text,
-                    condition: condition.text,
-                    description: description.text,
-                    price: parsedPrice,
-                    category: category.text,
-                    pickupLocation: location.text,
-                    status: status,
-                    photoPath: photoPath,
-                    ownerName: CurrentUser.user!.name,
-                    ownerContact: CurrentUser.user!.contact,
-                    ownerEmail: CurrentUser.user!.email,
-                  ),
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Error: $e"))
                 );
               }
             },
-            child: Text(isEdit ? "Save Changes" : "Add Item"),
+            child: Text(isEdit ? "Update Item" : "Add Item"),
           ),
         ],
       ),

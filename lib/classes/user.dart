@@ -1,11 +1,10 @@
 class User {
-  int userId;
+  String userId; // Firebase uses String UIDs
   String name;
   String studentId;
   String nic;
   String contact;
   String email;
-  String password;
 
   User({
     required this.userId,
@@ -14,6 +13,29 @@ class User {
     required this.nic,
     required this.contact,
     required this.email,
-    required this.password,
   });
+
+  // Convert Firebase Document to User Object
+  factory User.fromMap(Map<String, dynamic> data) {
+    return User(
+      userId: data['userId'] ?? '',
+      name: data['name'] ?? '',
+      studentId: data['studentId'] ?? '',
+      nic: data['nic'] ?? '',
+      contact: data['contact'] ?? '',
+      email: data['email'] ?? '',
+    );
+  }
+
+  // Convert User Object to Map for Firebase Storage
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'name': name,
+      'studentId': studentId,
+      'nic': nic,
+      'contact': contact,
+      'email': email,
+    };
+  }
 }
