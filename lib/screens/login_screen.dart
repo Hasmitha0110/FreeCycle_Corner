@@ -15,62 +15,140 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Freecycle Corner",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 30),
-            TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
-            TextField(controller: password, decoration: const InputDecoration(labelText: "Password"), obscureText: true),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  // 1. Sign in with Firebase Auth [cite: 95, 96]
-                  auth.UserCredential credential = await auth.FirebaseAuth.instance
-                      .signInWithEmailAndPassword(
-                    email: email.text.trim(),
-                    password: password.text.trim(),
-                  );
+      backgroundColor: Theme.of(context).colorScheme.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(
+                  Icons.recycling_rounded,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Welcome Back!",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Log in to your Freecycle Corner account",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextField(
+                          controller: email,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: "Email Address",
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: password,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: "Password",
+                            prefixIcon: Icon(Icons.lock_outline),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (email.text.trim().isEmpty || password.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Please fill in all fields")),
+                              );
+                              return;
+                            }
+                            try {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => const Center(child: CircularProgressIndicator()),
+                              );
+                              auth.UserCredential credential = await auth.FirebaseAuth.instance
+                                  .signInWithEmailAndPassword(
+                                email: email.text.trim(),
+                                password: password.text.trim(),
+                              );
 
-                  // 2. Fetch user profile from Firestore [cite: 95]
-                  var userDoc = await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(credential.user!.uid)
-                      .get();
+                              var userDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(credential.user!.uid)
+                                  .get();
 
-                  if (userDoc.exists) {
-                    // 3. Set global session and navigate [cite: 97]
-                    CurrentUser.user = User.fromMap(userDoc.data()!);
-                    
-                    Navigator.pushReplacement(
+                              Navigator.pop(context); // Close loading dialog
+
+                              if (userDoc.exists) {
+                                CurrentUser.user = User.fromMap(userDoc.data()!);
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("User profile not found")),
+                                );
+                              }
+                            } catch (e) {
+                              Navigator.pop(context); // Close loading dialog
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Login Failed: Check Email/Password")),
+                              );
+                            }
+                          },
+                          child: const Text("Log In"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      MaterialPageRoute(builder: (_) => SignupScreen()),
                     );
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Login Failed: Check Email/Password")),
-                  );
-                }
-              },
-              child: const Text("Login"),
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      text: "Don't have an account? ",
+                      style: TextStyle(color: Colors.grey.shade700),
+                      children: [
+                        TextSpan(
+                          text: "Sign Up",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => SignupScreen()),
-                );
-              },
-              child: const Text("Don't have an account? Sign Up"),
-            ),
-          ],
+          ),
         ),
       ),
     );

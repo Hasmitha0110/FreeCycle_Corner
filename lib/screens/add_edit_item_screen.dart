@@ -24,6 +24,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
 
   String status = "Available";
   String photoPath = "";
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -50,90 +51,162 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
   Widget build(BuildContext context) {
     final isEdit = widget.item != null;
     return Scaffold(
-      // FIXED: Changed 'app_bar' to 'appBar'
-      appBar: AppBar(title: Text(isEdit ? "Edit Item" : "Add Item")),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (photoPath.isNotEmpty)
-            Image.file(File(photoPath), height: 150, fit: BoxFit.cover),
+      backgroundColor: Theme.of(context).colorScheme.background,
+      appBar: AppBar(
+        title: Text(isEdit ? "Edit Item" : "Post New Item", style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GestureDetector(
+                onTap: pickImage,
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300, width: 2, style: BorderStyle.solid),
+                  ),
+                  child: photoPath.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(File(photoPath), fit: BoxFit.cover, width: double.infinity),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo_outlined, size: 48, color: Colors.grey.shade400),
+                            const SizedBox(height: 12),
+                            Text("Tap to add a photo", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Item Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 16),
+                      TextField(controller: name, decoration: const InputDecoration(labelText: "Item Name", prefixIcon: Icon(Icons.title))),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: TextField(controller: category, decoration: const InputDecoration(labelText: "Category", prefixIcon: Icon(Icons.category_outlined)))),
+                          const SizedBox(width: 16),
+                          Expanded(child: TextField(controller: condition, decoration: const InputDecoration(labelText: "Condition", prefixIcon: Icon(Icons.star_outline)))),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: price, 
+                        decoration: const InputDecoration(labelText: "Price (Rs.)", prefixIcon: Icon(Icons.attach_money)), 
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: description, 
+                        decoration: const InputDecoration(labelText: "Description", prefixIcon: Icon(Icons.description_outlined), alignLabelWithHint: true),
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Logistics", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 16),
+                      TextField(controller: location, decoration: const InputDecoration(labelText: "Pickup Location", prefixIcon: Icon(Icons.location_on_outlined))),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: status,
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        decoration: const InputDecoration(labelText: "Status", prefixIcon: Icon(Icons.info_outline)),
+                        items: ["Available", "Sold"]
+                            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (v) => setState(() => status = v!),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        final double? parsedPrice = double.tryParse(price.text);
+                        if (parsedPrice == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Enter a valid price"))
+                          );
+                          return;
+                        }
+                        if (name.text.isEmpty || category.text.isEmpty || location.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Please fill in the required fields"))
+                          );
+                          return;
+                        }
 
-          TextButton.icon(
-            onPressed: pickImage,
-            icon: const Icon(Icons.photo_library),
-            label: const Text("Select Photo"),
+                        setState(() => _isLoading = true);
+
+                        final itemData = {
+                          'itemName': name.text,
+                          'condition': condition.text,
+                          'description': description.text,
+                          'price': parsedPrice,
+                          'category': category.text,
+                          'pickupLocation': location.text,
+                          'status': status,
+                          'photoPath': photoPath,
+                          'ownerName': CurrentUser.user!.name,
+                          'ownerContact': CurrentUser.user!.contact,
+                          'ownerEmail': CurrentUser.user!.email,
+                          'createdAt': Timestamp.now(),
+                        };
+
+                        try {
+                          if (isEdit) {
+                            await FirebaseFirestore.instance
+                                .collection('items')
+                                .doc(widget.item!.itemId)
+                                .update(itemData);
+                          } else {
+                            await FirebaseFirestore.instance
+                                .collection('items')
+                                .add(itemData);
+                          }
+                          Navigator.pop(context);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Error: $e"))
+                          );
+                        } finally {
+                          if (mounted) setState(() => _isLoading = false);
+                        }
+                      },
+                child: _isLoading 
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(isEdit ? "Update Item" : "Post Item"),
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
-
-          TextField(controller: name, decoration: const InputDecoration(labelText: "Item Name")),
-          TextField(controller: condition, decoration: const InputDecoration(labelText: "Condition")),
-          TextField(controller: description, decoration: const InputDecoration(labelText: "Description")),
-          TextField(
-            controller: price, 
-            decoration: const InputDecoration(labelText: "Price (Rs.)"), 
-            keyboardType: TextInputType.number,
-          ),
-          TextField(controller: category, decoration: const InputDecoration(labelText: "Category")),
-          TextField(controller: location, decoration: const InputDecoration(labelText: "Pickup Location")),
-
-          const SizedBox(height: 10),
-
-          DropdownButtonFormField<String>(
-            value: status,
-            items: ["Available", "Sold"]
-                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                .toList(),
-            onChanged: (v) => setState(() => status = v!),
-            decoration: const InputDecoration(labelText: "Status"),
-          ),
-
-          const SizedBox(height: 20),
-
-          ElevatedButton(
-            onPressed: () async {
-              final double? parsedPrice = double.tryParse(price.text);
-              if (parsedPrice == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Enter a valid price"))
-                );
-                return;
-              }
-
-              final itemData = {
-                'itemName': name.text,
-                'condition': condition.text,
-                'description': description.text,
-                'price': parsedPrice,
-                'category': category.text,
-                'pickupLocation': location.text,
-                'status': status,
-                'photoPath': photoPath,
-                'ownerName': CurrentUser.user!.name,
-                'ownerContact': CurrentUser.user!.contact,
-                'ownerEmail': CurrentUser.user!.email,
-                'createdAt': Timestamp.now(),
-              };
-
-              try {
-                if (isEdit) {
-                  await FirebaseFirestore.instance
-                      .collection('items')
-                      .doc(widget.item!.itemId)
-                      .update(itemData);
-                } else {
-                  await FirebaseFirestore.instance
-                      .collection('items')
-                      .add(itemData);
-                }
-                Navigator.pop(context);
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Error: $e"))
-                );
-              }
-            },
-            child: Text(isEdit ? "Update Item" : "Add Item"),
-          ),
-        ],
+        ),
       ),
     );
   }
