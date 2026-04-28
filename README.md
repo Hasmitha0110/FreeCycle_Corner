@@ -4,7 +4,7 @@ Freecycle Corner is a modern, Flutter-based mobile application designed to promo
 
 ## 🎥 Video Demonstration
 
-<vedio src = "freecycle_demo.mp4" width="100%"></vedio>
+<vedio src = "https://github.com/user-attachments/assets/bee27f65-c7a8-4c2d-9ba2-cc61b25a295e" width="100%"></vedio>
 
 ## ✨ What the App Does
 
